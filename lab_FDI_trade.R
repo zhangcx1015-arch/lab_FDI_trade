@@ -381,3 +381,57 @@ animated_plot <- p +
 anim <- animate(animated_plot, nframes = 100, fps = 10, width = 800, height = 600, start_pause=10, end_pause = 10, renderer = gifski_renderer())
 anim_save("top10_countries_over_time.gif", animation = anim)
 
+
+
+#-------------------------------------------------------------------------------
+# Top 10 export destinations for 2015 and 2025
+
+exports_cty_yr <- getCensus(
+  name = "timeseries/intltrade/exports/naics",
+  vars = c("ALL_VAL_YR","YEAR","CTY_CODE","CTY_NAME"),
+  time = "from 2015",
+  MONTH = "12"
+)
+
+# Clean data
+exports_cty_yr_clean <- exports_cty_yr %>%
+  filter(!(substr(CTY_CODE, 1, 1) == "0" |
+             substr(CTY_CODE, 2, 2) == "X" |
+             substr(CTY_CODE,1,1)=="-")) %>%
+  mutate(
+    ALL_VAL_YR = as.numeric(ALL_VAL_YR)/1000000000,
+    YEAR = as.numeric(YEAR)
+  )
+
+# Top 10 countries
+top10_exports <- exports_cty_yr_clean %>%
+  filter(YEAR %in% c(2015, 2025)) %>%
+  group_by(YEAR) %>%
+  slice_max(order_by = ALL_VAL_YR, n = 10, with_ties = FALSE)
+
+# Graph
+export_plot <- ggplot(
+  top10_exports,
+  aes(x = reorder(CTY_NAME, ALL_VAL_YR),
+      y = ALL_VAL_YR,
+      fill = factor(YEAR))
+) +
+  geom_col(show.legend = FALSE) +
+  coord_flip() +
+  facet_wrap(~YEAR, scales = "free_y") +
+  labs(
+    title = "Top 10 Destinations for U.S. Exports",
+    x = "Country",
+    y = "Exports (Billions USD)"
+  ) +
+  theme_minimal()
+
+export_plot
+
+# Save graph
+ggsave(
+  "top10_us_exports_2015_2025.png",
+  export_plot,
+  width = 10,
+  height = 6
+)
